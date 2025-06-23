@@ -8,27 +8,17 @@
     body { font-family: sans-serif; padding: 2rem; text-align: center; }
     button { font-size: 1.2rem; padding: 1rem; margin-top: 1rem; }
     #result { margin-top: 2rem; font-size: 1.4rem; }
-    #muteToggle { margin-top: 1rem; }
   </style>
 </head>
 <body>
-  <h1>🎧 Keuken Assistent</h1>
+  <h1>🎙️ Keuken Assistent</h1>
   <p>Voorbeeld prompts:<br>
     <em>"Waar ligt de kaneel?"</em><br>
     <em>"Wat zit er in kast A1?"</em><br>
     <em>"Wat verloopt binnenkort in kast A1?"</em><br>
     <em>"Wat verloopt binnenkort in alle kasten?"</em>
   </p>
-
-  <label>
-    <input type="checkbox" id="muteToggle" checked>
-    🔊 Spreek antwoorden uit
-  </label>
-
-  <div>
-    <button onclick="startListening()">🎤 Start luisteren</button>
-  </div>
-
+  <button onclick="startListening()">🎤 Start luisteren</button>
   <div id="result"></div>
 
   <script>
@@ -37,9 +27,6 @@
     const resultDiv = document.getElementById('result');
 
     function speak(text) {
-      const mute = !document.getElementById('muteToggle').checked;
-      if (mute) return;
-
       if (synth.speaking) synth.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'nl-NL';
