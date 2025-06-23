@@ -1,0 +1,128 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Keuken Assistent (GitHub JSON)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; padding: 2rem; text-align: center; }
+    button { font-size: 1.2rem; padding: 1rem; margin-top: 1rem; }
+    #result { margin-top: 2rem; font-size: 1.4rem; }
+  </style>
+</head>
+<body>
+  <h1>🎙️ Keuken Assistent</h1>
+  <p>Voorbeeld prompts:<br>
+    <em>"Waar ligt de kaneel?"</em><br>
+    <em>"Wat zit er in kast A1?"</em><br>
+    <em>"Wat verloopt binnenkort in kast A1?"</em><br>
+    <em>"Wat verloopt binnenkort in alle kasten?"</em>
+  </p>
+  <button onclick="startListening()">🎤 Start luisteren</button>
+  <div id="result"></div>
+
+  <script>
+    const synth = window.speechSynthesis;
+    let voorraad = [];
+    const resultDiv = document.getElementById('result');
+
+    function speak(text) {
+      if (synth.speaking) synth.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'nl-NL';
+      utterance.volume = 1;
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      synth.speak(utterance);
+    }
+
+    function formatDateString(dateStr) {
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      return new Date(dateStr).toLocaleDateString('nl-NL', options);
+    }
+
+    function processTranscript(transcript) {
+      const lower = transcript.toLowerCase();
+      const locaties = [...new Set(voorraad.map(entry => entry.locatie.toLowerCase()))];
+      const locatieMatch = locaties.find(loc => lower.includes(loc));
+      const vandaag = new Date();
+
+      if (lower.includes("verloopt") || lower.includes("houdbaar")) {
+        let binnenkort;
+        if (lower.includes("alle") || lower.includes("kasten")) {
+          binnenkort = voorraad.filter(entry => new Date(entry.houdbaarTot) - vandaag < 30 * 24 * 60 * 60 * 1000);
+          const antwoord = binnenkort.length > 0
+            ? "Binnenkort verlopen: " + binnenkort.map(e => `${e.product} (${formatDateString(e.houdbaarTot)} in ${e.locatie})`).join(", ")
+            : "Er verloopt binnenkort niets.";
+          resultDiv.textContent = antwoord;
+          speak(antwoord);
+          return;
+        } else if (locatieMatch) {
+          binnenkort = voorraad.filter(entry => entry.locatie.toLowerCase() === locatieMatch &&
+              new Date(entry.houdbaarTot) - vandaag < 30 * 24 * 60 * 60 * 1000);
+          const antwoord = binnenkort.length > 0
+            ? `Binnenkort verlopen in ${locatieMatch}: ` + binnenkort.map(e => `${e.product} (${formatDateString(e.houdbaarTot)})`).join(", ")
+            : `Er verloopt binnenkort niets in ${locatieMatch}.`;
+          resultDiv.textContent = antwoord;
+          speak(antwoord);
+          return;
+        }
+      }
+
+      const productMatch = voorraad.find(entry => lower.includes(entry.product.toLowerCase()));
+      if (productMatch) {
+        const antwoord = `${productMatch.product} ligt in ${productMatch.locatie}`;
+        resultDiv.textContent = antwoord;
+        speak(antwoord);
+        return;
+      }
+
+      if (locatieMatch) {
+        const producten = voorraad.filter(entry => entry.locatie.toLowerCase() === locatieMatch)
+                                  .map(entry => entry.product);
+        if (producten.length > 0) {
+          const antwoord = `In ${locatieMatch} zit/zitten: ${producten.join(", ")}`;
+          resultDiv.textContent = antwoord;
+          speak(antwoord);
+          return;
+        }
+      }
+
+      const foutmelding = "Ik heb dat niet kunnen vinden.";
+      resultDiv.textContent = foutmelding;
+      speak(foutmelding);
+    }
+
+    function startListening() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'nl-NL';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.start();
+
+      recognition.onresult = function(event) {
+        const transcript = event.results[event.results.length - 1][0].transcript;
+        processTranscript(transcript);
+        recognition.stop();
+      };
+
+      recognition.onerror = function() {
+        resultDiv.textContent = "Er ging iets mis met spraakherkenning.";
+      };
+    }
+
+    fetch("https://raw.githubusercontent.com/alexisalexopoulos/keukenassistent/refs/heads/master/voorraadbeheer.json")
+      .then(response => response.json())
+      .then(data => {
+        voorraad = data;
+        console.log("Voorraad geladen:", voorraad);
+      })
+      .catch(err => {
+        console.error("Fout bij laden van voorraadbestand:", err);
+        resultDiv.textContent = "Fout bij laden van voorraadbestand.";
+      });
+  </script>
+</body>
+</html>
